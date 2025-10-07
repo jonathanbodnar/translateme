@@ -79,7 +79,13 @@ ENABLE_SHARING="true"
    - Go to Variables tab
    - Add all required variables listed above
 
-5. **Deploy**
+5. **Configure Build Settings (Important!)**
+   - In Railway dashboard, go to Settings
+   - Set Build Command: `npm run build`
+   - Set Start Command: `npm start`
+   - Or use the custom build script: `./scripts/railway-build.sh`
+
+6. **Deploy**
    ```bash
    railway up
    ```
@@ -174,6 +180,12 @@ railway logs
 - Check Node.js version compatibility
 - Verify all dependencies are installed
 - Review build logs in Railway dashboard
+
+**Prisma Generation Issues**
+- Ensure `prisma/schema.prisma` exists in repository
+- Check that build command includes `prisma generate`
+- Verify DATABASE_URL is set (even for build step)
+- Try using custom build script: `./scripts/railway-build.sh`
 
 **Database Connection Issues**
 - Verify DATABASE_URL is set correctly

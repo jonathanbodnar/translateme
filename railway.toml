@@ -1,11 +1,21 @@
 [build]
 builder = "nixpacks"
 
+[build.nixpacks]
+# Use Node.js 18
+nixpacksVersion = "1.21.0"
+
 [deploy]
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+# Build command that Railway will run
+buildCommand = "npm run build"
+
+# Start command
+startCommand = "npm start"
 
 [environments.production]
 variables = {}
