@@ -10,8 +10,8 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install all dependencies (needed for build)
+RUN npm ci
 
 # Generate Prisma client
 RUN npx prisma generate

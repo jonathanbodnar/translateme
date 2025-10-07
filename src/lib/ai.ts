@@ -1,8 +1,15 @@
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Initialize OpenAI client only when needed and API key is available
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured')
+  }
+  
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+}
 
 export interface QuestionGenerationContext {
   situationContext?: string
@@ -35,6 +42,7 @@ ${context.existingQuestions?.length ? `Avoid duplicating these existing question
 Return only the questions, one per line.`
 
   try {
+    const openai = getOpenAIClient()
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
@@ -82,6 +90,7 @@ Consider the user's personality traits when crafting these alternatives. Each op
 Return only the 3 alternatives, one per line, without numbering or labels.`
 
   try {
+    const openai = getOpenAIClient()
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
@@ -130,6 +139,7 @@ Create a brief, encouraging insight (2-3 sentences) that:
 The insight should feel personal and valuable to the user.`
 
   try {
+    const openai = getOpenAIClient()
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
