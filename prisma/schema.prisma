@@ -1,0 +1,231 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile data
+  profile              Profile?
+  intakeSessions       IntakeSession[]
+  wimtsEntries         WimtsEntry[]
+  metricsTimeSeries    MetricsTimeSeries[]
+  shareCards           ShareCard[]
+  relationships        Relationship[]
+  createdQuizzes       Quiz[]
+  perPersonInsights    PerPersonInsight[]
+
+  @@map("users")
+}
+
+model Quiz {
+  id                    String   @id @default(cuid())
+  title                 String
+  version               Int      @default(1)
+  status                String   @default("draft") // draft, active, archived
+  alignmentPhraseRules  Json?
+  choiceMode            String   @default("2-choice") // 2-choice, 3-choice
+  createdBy             String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  creator               User               @relation(fields: [createdBy], references: [id])
+  questions             Question[]
+  scoringFormulas       ScoringFormula[]
+  intakeSessions        IntakeSession[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id               String   @id @default(cuid())
+  quizId           String
+  text             String
+  meta             Json?
+  aiGenerated      Boolean  @default(false)
+  aiContextPrompt  String?
+  order            Int
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  quiz             Quiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answerOptions    AnswerOption[]
+
+  @@map("questions")
+}
+
+model AnswerOption {
+  id               String @id @default(cuid())
+  questionId       String
+  label            String
+  swipeMapping     String // left, right, up, skip
+  contributionMap  Json   // mapping to buckets/metrics
+  explanations     Json?
+
+  question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("answer_options")
+}
+
+model Bucket {
+  id                 String  @id @default(cuid())
+  name               String
+  description        String?
+  color              String?
+  isPrimaryMetric    Boolean @default(false)
+  visibilityRules    Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  metricsTimeSeries  MetricsTimeSeries[]
+
+  @@map("buckets")
+}
+
+model ScoringFormula {
+  id              String   @id @default(cuid())
+  quizId          String
+  expr            String   // formula expression
+  normalization   Json?
+  topKHighlight   Int      @default(2)
+  blurNonTopK     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  quiz            Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("scoring_formulas")
+}
+
+model IntakeSession {
+  id          String    @id @default(cuid())
+  userId      String
+  quizId      String
+  inputs      Json?     // context fields
+  answers     Json      // user answers
+  scores      Json?     // calculated scores
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User @relation(fields: [userId], references: [id])
+  quiz        Quiz @relation(fields: [quizId], references: [id])
+
+  @@map("intake_sessions")
+}
+
+model WimtsEntry {
+  id                    String   @id @default(cuid())
+  userId                String
+  rawInput              String
+  situationContext      String?
+  aiConversationTrace   Json?
+  aiCandidates          Json?    // 3 AI-generated candidates
+  userSelection         String?  // selected/edited final text
+  finalText             String?
+  otherPersonTranslate  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User @relation(fields: [userId], references: [id])
+
+  @@map("wimts_entries")
+}
+
+model Profile {
+  id                  String  @id @default(cuid())
+  userId              String  @unique
+  staticFields        Json?
+  deepProfileIntake   Json?
+  manualCards         Json?
+  aiChatOptIn         Boolean @default(false)
+  shareableToggle     Boolean @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user                User @relation(fields: [userId], references: [id])
+
+  @@map("profiles")
+}
+
+model MetricsTimeSeries {
+  id        String   @id @default(cuid())
+  userId    String
+  metricId  String   // references bucket id
+  value     Float
+  source    String?  // quiz, wimts, manual, etc.
+  createdAt DateTime @default(now())
+
+  user      User   @relation(fields: [userId], references: [id])
+  bucket    Bucket @relation(fields: [metricId], references: [id])
+
+  @@map("metrics_time_series")
+}
+
+model ShareCard {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime
+  contentJson     Json
+  imageAssetRef   String?
+  publishedChannels Json?
+  createdAt       DateTime @default(now())
+
+  user            User @relation(fields: [userId], references: [id])
+
+  @@map("share_cards")
+}
+
+model Relationship {
+  id                   String @id @default(cuid())
+  userId               String
+  personRef            String // reference to another person (could be user ID or external ref)
+  tags                 Json?  // user-created + suggested tags
+  sliders              Json?  // closeness, affection, humor, etc.
+  ongoingContext       String?
+  linkedMetricsUserId  String? // if other person shares metrics
+
+  user                 User @relation(fields: [userId], references: [id])
+  perPersonInsights    PerPersonInsight[]
+
+  @@map("relationships")
+}
+
+model PerPersonInsight {
+  id            String   @id @default(cuid())
+  relationshipId String
+  userId        String   // for indexing
+  sourceRefs    Json?    // references to WIMTS entries, interactions, etc.
+  insightText   String
+  privacyBasis  String?
+  createdAt     DateTime @default(now())
+
+  relationship  Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  user          User @relation(fields: [userId], references: [id])
+
+  @@map("per_person_insights")
+}
+
+model Settings {
+  id                    String @id @default(cuid())
+  key                   String @unique
+  value                 Json
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("settings")
+}
